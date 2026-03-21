@@ -1,0 +1,16 @@
+[
+  {
+    "timestamp": "2026-03-20T18:43:33.294Z",
+    "action": "click",
+    "intent": "Submit the form",
+    "selector": "#submit-btn",
+    "html": "<button type=\"button\" id=\"submit-btn\">Submit</button>",
+    "boundingBox": {
+      "x": 189,
+      "y": 8,
+      "width": 57.484375,
+      "height": 21
+    },
+    "xpath": "id(\"submit-btn\")"
+  }
+]
