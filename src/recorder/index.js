@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
+const { getCachedHealedSelector } = require('../discovery');
 
 const LOG_FILE = path.join(process.cwd(), 'intent_logs.json');
 
@@ -79,7 +80,14 @@ class Recorder {
    * @param {object} [options] - Optional Playwright click options.
    */
   static async click(page, selector, intent, options = {}) {
-    const element = await page.locator(selector).first();
+    let effectiveSelector = selector;
+    const cachedHealedSelector = await getCachedHealedSelector(intent, selector);
+    if (cachedHealedSelector) {
+      console.log(`\\n[Recorder] Cache hit for intent "${intent}". Using healed selector: "${cachedHealedSelector}" instead of "${selector}"`);
+      effectiveSelector = cachedHealedSelector;
+    }
+
+    const element = await page.locator(effectiveSelector).first();
     const elementHandle = await element.elementHandle();
     
     if (elementHandle) {
@@ -90,14 +98,15 @@ class Recorder {
       await logIntent({
         action: 'click',
         intent,
-        selector,
+        selector: effectiveSelector,
+        originalSelector: selector,
         html,
         boundingBox,
         xpath
       });
     }
 
-    await page.click(selector, options);
+    await page.click(effectiveSelector, options);
   }
 
   /**
@@ -110,7 +119,14 @@ class Recorder {
    * @param {object} [options] - Optional Playwright fill options.
    */
   static async fill(page, selector, value, intent, options = {}) {
-    const element = await page.locator(selector).first();
+    let effectiveSelector = selector;
+    const cachedHealedSelector = await getCachedHealedSelector(intent, selector);
+    if (cachedHealedSelector) {
+      console.log(`\\n[Recorder] Cache hit for intent "${intent}". Using healed selector: "${cachedHealedSelector}" instead of "${selector}"`);
+      effectiveSelector = cachedHealedSelector;
+    }
+
+    const element = await page.locator(effectiveSelector).first();
     const elementHandle = await element.elementHandle();
     
     if (elementHandle) {
@@ -121,7 +137,8 @@ class Recorder {
       await logIntent({
         action: 'fill',
         intent,
-        selector,
+        selector: effectiveSelector,
+        originalSelector: selector,
         value,
         html,
         boundingBox,
@@ -129,7 +146,7 @@ class Recorder {
       });
     }
 
-    await page.fill(selector, value, options);
+    await page.fill(effectiveSelector, value, options);
   }
 }
 

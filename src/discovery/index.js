@@ -1,7 +1,38 @@
 const { GoogleGenAI } = require('@google/genai');
+const fs = require('fs').promises;
+const path = require('path');
 
 // Initialize Gemini client. Assumes GEMINI_API_KEY is in the environment.
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const CACHE_FILE = path.join(process.cwd(), 'healed_selectors.json');
+
+async function getCache() {
+  try {
+    const data = await fs.readFile(CACHE_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return {};
+  }
+}
+
+async function saveCache(cache) {
+  try {
+    await fs.writeFile(CACHE_FILE, JSON.stringify(cache, null, 2));
+  } catch (error) {
+    console.error('Failed to save cache:', error);
+  }
+}
+
+async function getCachedHealedSelector(intent, failedSelector) {
+  const cache = await getCache();
+  return cache[`${intent}|${failedSelector}`] || null;
+}
+
+async function saveHealedSelector(intent, failedSelector, healedSelector) {
+  const cache = await getCache();
+  cache[`${intent}|${failedSelector}`] = healedSelector;
+  await saveCache(cache);
+}
 
 /**
  * Heals a failed selector by finding the best alternative element based on intent.
@@ -15,6 +46,9 @@ async function healSelector(intent, failedSelector, pageDOM) {
   if (!pageDOM || pageDOM.length === 0) {
     return null;
   }
+
+  // We no longer check the HTML cache here since we cache the derived CSS selector instead.
+  // The Recorder checks the CSS selector cache before even needing to heal.
 
   const systemPrompt = `You are an expert web scraping and automation assistant.
 Your task is to heal a broken CSS selector by identifying the correct target element from a list of available clickable elements.
@@ -67,5 +101,7 @@ Select the best matching element based on the intent.`;
 }
 
 module.exports = {
-  healSelector
+  healSelector,
+  getCachedHealedSelector,
+  saveHealedSelector
 };

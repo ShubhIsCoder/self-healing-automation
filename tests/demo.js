@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const Recorder = require('../src/recorder');
-const { healSelector } = require('../src/discovery');
+const { healSelector, saveHealedSelector } = require('../src/discovery');
 
 const DUMMY_HTML_PATH = path.join(__dirname, 'dummy.html');
 const FILE_URL = 'file://' + DUMMY_HTML_PATH;
@@ -65,9 +65,15 @@ async function run() {
     console.log('\\n[ERROR] Action failed:', error.message);
     console.log('\\n--- Initiating Intent-Preservation Healing Engine ---');
 
-    // Extract clickable elements to feed the Healing Engine
-    const clickableElements = await page.$$eval('button, a, input[type="button"], input[type="submit"]', 
-        els => els.map(el => el.outerHTML)
+    // Extract clickable elements to feed the Healing Engine (filtered for visibility and context limits)
+    const clickableElements = await page.$$eval('button, a, input[type="button"], input[type="submit"], [role="button"]', 
+        els => els
+          .filter(el => {
+             const style = window.getComputedStyle(el);
+             return style && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0' && el.offsetWidth > 0 && el.offsetHeight > 0;
+          })
+          .map(el => el.outerHTML)
+          .slice(0, 50) // Limit to top 50 to constrain context size
     );
 
     console.log('Available clickable elements found on page:');
@@ -91,6 +97,7 @@ async function run() {
 
         if (newSelectorId) {
             console.log(`\\nGenerated new selector: "${newSelectorId}"`);
+            await saveHealedSelector(intent, originalSelector, newSelectorId);
             console.log(`Executing click on healed selector...`);
             await Recorder.click(page, newSelectorId, intent);
             console.log('[SUCCESS] Successfully completed the action on the correct (healed) element!');
